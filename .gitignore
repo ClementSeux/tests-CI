@@ -10,7 +10,6 @@ yarn-error.log*
 lerna-debug.log*
 
 # Fichiers de lock optionnels
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
