@@ -1,0 +1,32 @@
+{
+    "name": "tests-ci",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "node index.js",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:unit": "jest tests/unit",
+        "test:functional": "jest tests/functional",
+        "test:integration": "jest tests/integration",
+        "test:e2e": "jest tests/e2e",
+        "test:coverage": "jest --coverage",
+        "test:ci": "jest --coverage --ci --watchAll=false",
+        "lint": "echo \"Linting would go here\"",
+        "coverage:check": "jest --coverage --coverageThreshold='{\"global\":{\"branches\":80,\"functions\":80,\"lines\":80,\"statements\":80}}'"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "jest": "^30.0.2",
+        "supertest": "^7.1.1"
+    },
+    "dependencies": {
+        "body-parser": "^2.2.0",
+        "express": "^5.1.0",
+        "sqlite3": "^5.1.7"
+    }
+}

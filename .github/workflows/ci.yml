@@ -1,0 +1,276 @@
+name: CI/CD Pipeline - Microservice Conversion Financière
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18.x'
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  # Job 1: Tests et Validation
+  test-and-validate:
+    runs-on: ubuntu-latest
+    name: Tests et Validation
+    
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Installation des dépendances
+      run: npm ci
+
+    - name: Exécution des tests
+      run: npm test
+
+    - name: Génération du rapport de couverture
+      run: npm run test:coverage
+
+    - name: Vérification du seuil de couverture
+      run: npm run coverage:check
+
+    - name: Upload du rapport de couverture
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+
+    - name: Audit de sécurité
+      run: npm audit --audit-level=moderate
+
+  # Job 2: Build et Préparation
+  build:
+    runs-on: ubuntu-latest
+    needs: test-and-validate
+    name: Build et Préparation
+    
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Installation des dépendances de production
+      run: npm ci --production
+
+    - name: Test de démarrage
+      run: |
+        timeout 10s npm start || if [ $? -eq 124 ]; then echo "✅ Service démarre correctement"; else exit 1; fi
+
+    - name: Création de l'artifact de déploiement
+      run: |
+        tar -czf financial-microservice-${{ github.sha }}.tar.gz \
+          --exclude=node_modules \
+          --exclude=coverage \
+          --exclude=.git \
+          --exclude=tests \
+          .
+
+    - name: Upload de l'artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: financial-microservice-${{ github.sha }}
+        path: financial-microservice-${{ github.sha }}.tar.gz
+
+  # Job 3: Déploiement en Staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [test-and-validate, build]
+    name: Déploiement Staging
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v4
+
+    - name: Download artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: financial-microservice-${{ github.sha }}
+
+    - name: Déploiement sur serveur staging
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.STAGING_HOST }}
+        username: ${{ secrets.STAGING_USER }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        port: ${{ secrets.STAGING_PORT }}
+        script: |
+          cd /var/www/financial-microservice
+          ./deploy/deploy.sh staging
+
+    - name: Tests de santé post-déploiement
+      run: |
+        sleep 30
+        curl -f ${{ secrets.STAGING_URL }}/health
+        curl -f "${{ secrets.STAGING_URL }}/convert?from=EUR&to=USD&amount=100"
+
+    - name: Notification Slack (succès staging)
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: "✅ Déploiement staging réussi - ${{ github.sha }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Job 4: Tests d'intégration sur Staging
+  integration-tests-staging:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    name: Tests d'Intégration Staging
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Installation des dépendances de test
+      run: npm ci
+
+    - name: Tests E2E sur staging
+      env:
+        API_BASE_URL: ${{ secrets.STAGING_URL }}
+      run: npm run test:e2e
+
+    - name: Tests de charge légers
+      run: |
+        npx artillery quick --count 10 --num 5 ${{ secrets.STAGING_URL }}/health
+
+  # Job 5: Déploiement en Production
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [test-and-validate, build]
+    name: Déploiement Production
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v4
+
+    - name: Download artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: financial-microservice-${{ github.sha }}
+
+    - name: Déploiement sur serveur production
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USER }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
+        port: ${{ secrets.PRODUCTION_PORT }}
+        script: |
+          cd /var/www/financial-microservice
+          ./deploy/deploy.sh production
+
+    - name: Tests de santé post-déploiement production
+      run: |
+        sleep 30
+        for i in {1..5}; do
+          if curl -f ${{ secrets.PRODUCTION_URL }}/health; then
+            echo "✅ Service production opérationnel"
+            break
+          else
+            echo "⏳ Tentative $i/5..."
+            sleep 10
+          fi
+        done
+
+    - name: Tests fonctionnels production
+      run: |
+        curl -f "${{ secrets.PRODUCTION_URL }}/convert?from=EUR&to=USD&amount=100"
+        curl -f "${{ secrets.PRODUCTION_URL }}/tva?ht=100&taux=20"
+        curl -f "${{ secrets.PRODUCTION_URL }}/remise?prix=100&pourcentage=10"
+
+    - name: Notification Slack (succès production)
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: "🚀 Déploiement production réussi - ${{ github.sha }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Job 6: Rollback automatique en cas d'échec
+  rollback:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    name: Rollback Automatique
+    if: failure() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Rollback production
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USER }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
+        port: ${{ secrets.PRODUCTION_PORT }}
+        script: |
+          cd /var/www/financial-microservice
+          if [ -d "previous" ]; then
+            rm -rf current
+            mv previous current
+            pm2 restart financial-microservice
+            echo "✅ Rollback effectué"
+          fi
+
+    - name: Notification Slack (rollback)
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: "🔄 Rollback automatique effectué - ${{ github.sha }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Job 7: Monitoring et Alertes
+  monitoring:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    name: Monitoring Post-Déploiement
+    if: success() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Tests de monitoring
+      run: |
+        # Test de performance
+        curl -w "@-" -o /dev/null -s "${{ secrets.PRODUCTION_URL }}/health" <<'EOF'
+        time_total: %{time_total}s
+        time_connect: %{time_connect}s
+        time_starttransfer: %{time_starttransfer}s
+        http_code: %{http_code}
+        EOF
+
+    - name: Notification de succès complet
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: |
+          🎉 Déploiement complet réussi !
+          📊 Commit: ${{ github.sha }}
+          🔗 URL: ${{ secrets.PRODUCTION_URL }}
+          ✅ Tous les tests passés
+          📈 Monitoring actif
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
