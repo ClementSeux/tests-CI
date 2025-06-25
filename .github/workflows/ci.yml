@@ -37,12 +37,12 @@ jobs:
             - name: Vérification du seuil de couverture
               run: npm run coverage:check
 
-            - name: Upload du rapport de couverture
-              uses: codecov/codecov-action@v4
-              if: env.CODECOV_TOKEN != ''
+            - name: Archive du rapport de couverture
+              uses: actions/upload-artifact@v4
               with:
-                  file: ./coverage/lcov.info
-                  token: ${{ secrets.CODECOV_TOKEN }}
+                  name: coverage-report
+                  path: coverage/
+                  retention-days: 7
 
             - name: Audit de sécurité
               run: npm audit --audit-level=moderate
@@ -68,52 +68,60 @@ jobs:
 
             - name: Test de démarrage
               run: |
-                  # Démarrage en arrière-plan
-                  PORT=3001 NODE_ENV=test node index.js &
+                  # Démarrage en arrière-plan sur un port spécifique
+                  PORT=3001 NODE_ENV=test timeout 15s node index.js &
                   APP_PID=$!
 
                   # Attente du démarrage
                   sleep 5
 
-                  # Test de santé
-                  if curl -f "http://localhost:3001/health" >/dev/null 2>&1; then
-                    echo "✅ Service démarre correctement"
-                  else
-                    echo "❌ Service ne démarre pas correctement"
-                    exit 1
-                  fi
+                  # Test de santé avec retry
+                  for i in {1..5}; do
+                    if curl -f "http://localhost:3001/health" >/dev/null 2>&1; then
+                      echo "✅ Service démarre correctement"
+                      break
+                    elif [ $i -eq 5 ]; then
+                      echo "❌ Service ne démarre pas correctement après 5 tentatives"
+                      exit 1
+                    else
+                      echo "Tentative $i/5 - En attente..."
+                      sleep 2
+                    fi
+                  done
 
                   # Arrêt propre du processus
-                  kill $APP_PID
+                  kill $APP_PID 2>/dev/null || true
                   wait $APP_PID 2>/dev/null || true
 
-                  # Attente pour s'assurer que tous les processus sont arrêtés
-                  sleep 2
-
-            - name: Nettoyage des processus
+            - name: Nettoyage final des processus
               run: |
-                  # S'assurer qu'aucun processus Node.js ne tourne
-                  pkill -f "node.*index.js" || true
-                  sleep 1
+                  # Nettoyage de tous les processus Node.js restants
+                  pkill -f "node.*index.js" 2>/dev/null || true
+                  sleep 2
 
             - name: Création de l'artifact de déploiement
               run: |
-                  # Création d'un répertoire temporaire pour l'archive
-                  mkdir -p /tmp/build-artifact
+                  # Création d'un répertoire temporaire propre
+                  BUILD_DIR="/tmp/financial-microservice-build"
+                  rm -rf "$BUILD_DIR"
+                  mkdir -p "$BUILD_DIR"
 
-                  # Copie des fichiers nécessaires
-                  cp -r . /tmp/build-artifact/ || true
-                  cd /tmp/build-artifact
+                  # Copie sélective des fichiers nécessaires
+                  echo "📁 Copie des fichiers essentiels..."
+                  cp package.json "$BUILD_DIR/"
+                  cp index.js "$BUILD_DIR/"
+                  cp -r src/ "$BUILD_DIR/" 2>/dev/null || true
+                  cp ecosystem.config.js "$BUILD_DIR/" 2>/dev/null || true
+                  cp README.md "$BUILD_DIR/" 2>/dev/null || true
 
-                  # Suppression des dossiers non nécessaires
-                  rm -rf node_modules coverage .git tests .github
+                  # Création de l'archive depuis le répertoire de build
+                  cd "$BUILD_DIR"
+                  tar -czf "/tmp/financial-microservice-${{ github.sha }}.tar.gz" .
 
-                  # Création de l'archive
-                  tar -czf ../financial-microservice-${{ github.sha }}.tar.gz .
+                  # Copie vers le workspace
+                  cp "/tmp/financial-microservice-${{ github.sha }}.tar.gz" "$GITHUB_WORKSPACE/"
 
-                  # Retour au répertoire de travail et copie de l'archive
-                  cd $GITHUB_WORKSPACE
-                  cp /tmp/financial-microservice-${{ github.sha }}.tar.gz .
+                  echo "✅ Artifact créé: financial-microservice-${{ github.sha }}.tar.gz"
 
             - name: Upload de l'artifact
               uses: actions/upload-artifact@v4
@@ -127,7 +135,7 @@ jobs:
         runs-on: ubuntu-latest
         needs: [test-and-validate, build]
         name: Déploiement Staging
-        if: github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
         environment: staging
 
         steps:
@@ -156,19 +164,12 @@ jobs:
                   curl -f "${{ secrets.STAGING_URL }}/health"
                   curl -f "${{ secrets.STAGING_URL }}/convert?from=EUR&to=USD&amount=100"
 
-            - name: Notification (succès staging)
-              if: success() && secrets.SLACK_WEBHOOK != ''
-              uses: 8398a7/action-slack@v3
-              with:
-                  status: success
-                  webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-
     # Job 4: Déploiement en Production
     deploy-production:
         runs-on: ubuntu-latest
         needs: [test-and-validate, build]
         name: Déploiement Production
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         environment: production
 
         steps:
@@ -196,10 +197,3 @@ jobs:
                   sleep 30
                   curl -f "${{ secrets.PRODUCTION_URL }}/health"
                   curl -f "${{ secrets.PRODUCTION_URL }}/convert?from=EUR&to=USD&amount=100"
-
-            - name: Notification (succès production)
-              if: success() && secrets.SLACK_WEBHOOK != ''
-              uses: 8398a7/action-slack@v3
-              with:
-                  status: success
-                  webhook_url: ${{ secrets.SLACK_WEBHOOK }}

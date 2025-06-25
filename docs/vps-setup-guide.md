@@ -3,15 +3,17 @@
 ## 🎯 Prérequis VPS
 
 ### Système recommandé
-- **OS**: Ubuntu 20.04 LTS ou supérieur
-- **RAM**: Minimum 2GB (recommandé 4GB)
-- **Stockage**: Minimum 20GB SSD
-- **CPU**: 2 vCores minimum
+
+-   **OS**: Ubuntu 20.04 LTS ou supérieur
+-   **RAM**: Minimum 2GB (recommandé 4GB)
+-   **Stockage**: Minimum 20GB SSD
+-   **CPU**: 2 vCores minimum
 
 ### Accès requis
-- Accès SSH avec clé publique/privée
-- Utilisateur avec privilèges sudo
-- Domaine configuré (optionnel mais recommandé)
+
+-   Accès SSH avec clé publique/privée
+-   Utilisateur avec privilèges sudo
+-   Domaine configuré (optionnel mais recommandé)
 
 ## 🚀 Étapes de Configuration
 
@@ -63,21 +65,24 @@ sudo ./setup-vps.sh
 Allez dans `Settings > Secrets and variables > Actions` et ajoutez :
 
 #### Staging Environment
-- `STAGING_HOST`: IP ou domaine de votre VPS
-- `STAGING_USER`: `deploy`
-- `STAGING_SSH_KEY`: Contenu de votre clé privée SSH
-- `STAGING_PORT`: `22` (ou port SSH personnalisé)
-- `STAGING_URL`: `https://staging.votre-domaine.com` ou `http://YOUR_VPS_IP:3000`
+
+-   `STAGING_HOST`: IP ou domaine de votre VPS
+-   `STAGING_USER`: `deploy`
+-   `STAGING_SSH_KEY`: Contenu de votre clé privée SSH
+-   `STAGING_PORT`: `22` (ou port SSH personnalisé)
+-   `STAGING_URL`: `https://staging.votre-domaine.com` ou `http://YOUR_VPS_IP:3000`
 
 #### Production Environment
-- `PRODUCTION_HOST`: IP ou domaine de votre VPS
-- `PRODUCTION_USER`: `deploy`
-- `PRODUCTION_SSH_KEY`: Contenu de votre clé privée SSH
-- `PRODUCTION_PORT`: `22`
-- `PRODUCTION_URL`: `https://votre-domaine.com` ou `http://YOUR_VPS_IP:3001`
+
+-   `PRODUCTION_HOST`: IP ou domaine de votre VPS
+-   `PRODUCTION_USER`: `deploy`
+-   `PRODUCTION_SSH_KEY`: Contenu de votre clé privée SSH
+-   `PRODUCTION_PORT`: `22`
+-   `PRODUCTION_URL`: `https://votre-domaine.com` ou `http://YOUR_VPS_IP:3001`
 
 #### Monitoring & Notifications
-- `SLACK_WEBHOOK`: URL webhook Slack (optionnel)
+
+-   `SLACK_WEBHOOK`: URL webhook Slack (optionnel)
 
 ### Génération des clés SSH
 
@@ -136,26 +141,29 @@ tail -f /var/log/nginx/access.log
 
 ## 📊 Monitoring disponible
 
-- **PM2 Monitoring**: `pm2 monit`
-- **Nginx Status**: `systemctl status nginx`
-- **Logs applicatifs**: `/var/www/financial-microservice/shared/logs/`
-- **Logs système**: `/var/log/syslog`, `/var/log/nginx/`
+-   **PM2 Monitoring**: `pm2 monit`
+-   **Nginx Status**: `systemctl status nginx`
+-   **Logs applicatifs**: `/var/www/financial-microservice/shared/logs/`
+-   **Logs système**: `/var/log/syslog`, `/var/log/nginx/`
 
 ## 🆘 Procédures d'urgence
 
 ### Rollback rapide
+
 ```bash
 cd /var/www/financial-microservice
 sudo -u deploy ./deploy/rollback.sh
 ```
 
 ### Redémarrage des services
+
 ```bash
 sudo systemctl restart nginx
 sudo -u deploy pm2 restart financial-microservice
 ```
 
 ### Vérification de la santé
+
 ```bash
 curl -f http://localhost:3000/health
 ```

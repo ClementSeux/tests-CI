@@ -4,33 +4,36 @@ Un microservice REST Node.js pour effectuer des conversions de devises et des ca
 
 ## 📋 Sommaire
 
-- [Fonctionnalités](#fonctionnalités)
-- [API Endpoints](#api-endpoints)
-- [Installation](#installation)
-- [Utilisation](#utilisation)
-- [Tests](#tests)
-- [CI/CD](#cicd)
-- [Déploiement CI/CD](#déploiement-cicd)
-- [Architecture](#architecture)
-- [Contribution](#contribution)
+-   [Fonctionnalités](#fonctionnalités)
+-   [API Endpoints](#api-endpoints)
+-   [Installation](#installation)
+-   [Utilisation](#utilisation)
+-   [Tests](#tests)
+-   [CI/CD](#cicd)
+-   [Déploiement CI/CD](#déploiement-cicd)
+-   [Architecture](#architecture)
+-   [Contribution](#contribution)
 
 ## ✨ Fonctionnalités
 
 ### Conversions de Devises
-- ✅ Conversion EUR ↔ USD (1 EUR = 1.1 USD)
-- ✅ Conversion USD ↔ GBP (1 USD = 0.8 GBP)
-- ✅ Taux de change fixes selon les spécifications
+
+-   ✅ Conversion EUR ↔ USD (1 EUR = 1.1 USD)
+-   ✅ Conversion USD ↔ GBP (1 USD = 0.8 GBP)
+-   ✅ Taux de change fixes selon les spécifications
 
 ### Calculs Financiers
-- ✅ Calcul de montant TTC à partir du HT et du taux de TVA
-- ✅ Application de remises sur un prix donné
-- ✅ Validation complète des entrées
+
+-   ✅ Calcul de montant TTC à partir du HT et du taux de TVA
+-   ✅ Application de remises sur un prix donné
+-   ✅ Validation complète des entrées
 
 ### Qualité et Robustesse
-- ✅ Couverture de tests >= 80%
-- ✅ Tests unitaires, fonctionnels, d'intégration et E2E
-- ✅ Pipeline CI/CD complet
-- ✅ Gestion d'erreurs robuste
+
+-   ✅ Couverture de tests >= 80%
+-   ✅ Tests unitaires, fonctionnels, d'intégration et E2E
+-   ✅ Pipeline CI/CD complet
+-   ✅ Gestion d'erreurs robuste
 
 ## 🚀 API Endpoints
 
@@ -41,20 +44,22 @@ GET /convert?from=EUR&to=USD&amount=100
 ```
 
 **Réponse:**
+
 ```json
 {
-  "from": "EUR",
-  "to": "USD",
-  "originalAmount": 100,
-  "convertedAmount": 110
+    "from": "EUR",
+    "to": "USD",
+    "originalAmount": 100,
+    "convertedAmount": 110
 }
 ```
 
 **Conversions supportées:**
-- `EUR` → `USD` (taux: 1.1)
-- `USD` → `GBP` (taux: 0.8)
-- `USD` → `EUR` (taux: ~0.91)
-- `GBP` → `USD` (taux: 1.25)
+
+-   `EUR` → `USD` (taux: 1.1)
+-   `USD` → `GBP` (taux: 0.8)
+-   `USD` → `EUR` (taux: ~0.91)
+-   `GBP` → `USD` (taux: 1.25)
 
 ### 🧾 Calcul TVA
 
@@ -63,11 +68,12 @@ GET /tva?ht=100&taux=20
 ```
 
 **Réponse:**
+
 ```json
 {
-  "ht": 100,
-  "taux": 20,
-  "ttc": 120
+    "ht": 100,
+    "taux": 20,
+    "ttc": 120
 }
 ```
 
@@ -78,22 +84,25 @@ GET /remise?prix=100&pourcentage=10
 ```
 
 **Réponse:**
+
 ```json
 {
-  "prixInitial": 100,
-  "pourcentage": 10,
-  "prixFinal": 90
+    "prixInitial": 100,
+    "pourcentage": 10,
+    "prixFinal": 90
 }
 ```
 
 ### 🔍 Endpoints Utilitaires
 
 #### Santé du Service
+
 ```http
 GET /health
 ```
 
 #### Taux de Change Disponibles
+
 ```http
 GET /rates
 ```
@@ -101,8 +110,9 @@ GET /rates
 ## 🛠 Installation
 
 ### Prérequis
-- Node.js >= 18.x
-- npm >= 8.x
+
+-   Node.js >= 18.x
+-   npm >= 8.x
 
 ### Installation des dépendances
 
@@ -142,36 +152,44 @@ Ce projet inclut une suite complète de tests avec différents niveaux:
 ### Types de Tests
 
 #### Tests Unitaires
+
 ```bash
 npm run test:unit
 ```
-- Tests des services `ConversionService` et `FinancialService`
-- Validation de la logique métier
-- Tests des cas limites
+
+-   Tests des services `ConversionService` et `FinancialService`
+-   Validation de la logique métier
+-   Tests des cas limites
 
 #### Tests Fonctionnels
+
 ```bash
 npm run test:functional
 ```
-- Tests des routes API
-- Validation des codes de retour HTTP
-- Tests de validation des paramètres
+
+-   Tests des routes API
+-   Validation des codes de retour HTTP
+-   Tests de validation des paramètres
 
 #### Tests d'Intégration
+
 ```bash
 npm run test:integration
 ```
-- Tests avec mock d'API externe
-- Tests de résilience et fallback
-- Tests de gestion d'erreurs
+
+-   Tests avec mock d'API externe
+-   Tests de résilience et fallback
+-   Tests de gestion d'erreurs
 
 #### Tests End-to-End (E2E)
+
 ```bash
 npm run test:e2e
 ```
-- Scénarios complets multi-étapes
-- Tests de workflows métier
-- Tests de performance basiques
+
+-   Scénarios complets multi-étapes
+-   Tests de workflows métier
+-   Tests de performance basiques
 
 ### Commandes de Test
 
@@ -195,10 +213,11 @@ npm run coverage:check
 ### Couverture de Code
 
 Le projet maintient une couverture de code >= 80% sur:
-- Branches
-- Fonctions  
-- Lignes
-- Instructions
+
+-   Branches
+-   Fonctions
+-   Lignes
+-   Instructions
 
 ## 🔄 CI/CD
 
@@ -219,21 +238,24 @@ Le pipeline CI/CD inclut:
 ### Conditions d'Échec
 
 Le pipeline échoue si:
-- ❌ Un test échoue
-- ❌ La couverture < 80%
-- ❌ Audit de sécurité détecte des vulnérabilités critiques
-- ❌ Le service ne démarre pas correctement
+
+-   ❌ Un test échoue
+-   ❌ La couverture < 80%
+-   ❌ Audit de sécurité détecte des vulnérabilités critiques
+-   ❌ Le service ne démarre pas correctement
 
 ## 🚀 Déploiement CI/CD sur VPS
 
 ### Prérequis VPS
-- Ubuntu 20.04+ avec 2GB RAM minimum
-- Accès SSH avec clés publique/privée
-- Domaine configuré (optionnel)
+
+-   Ubuntu 20.04+ avec 2GB RAM minimum
+-   Accès SSH avec clés publique/privée
+-   Domaine configuré (optionnel)
 
 ### Installation rapide
 
 1. **Préparation du VPS** :
+
 ```bash
 # Connexion au VPS
 ssh root@YOUR_VPS_IP
@@ -243,15 +265,17 @@ curl -sSL https://raw.githubusercontent.com/VOTRE_USERNAME/VOTRE_REPO/main/deplo
 ```
 
 2. **Configuration des secrets GitHub** :
-   - Consultez [docs/github-secrets-setup.md](docs/github-secrets-setup.md)
-   - Configurez les secrets dans GitHub Actions
+
+    - Consultez [docs/github-secrets-setup.md](docs/github-secrets-setup.md)
+    - Configurez les secrets dans GitHub Actions
 
 3. **Déploiement automatique** :
+
 ```bash
 # Staging (branche develop)
 git push origin develop
 
-# Production (branche main)  
+# Production (branche main)
 git push origin main
 ```
 
@@ -272,12 +296,14 @@ git push origin main
 ```
 
 ### URLs de déploiement
-- **Staging**: http://YOUR_VPS_IP:3000 ou https://staging.votre-domaine.com
-- **Production**: http://YOUR_VPS_IP:3001 ou https://votre-domaine.com
+
+-   **Staging**: http://YOUR_VPS_IP:3000 ou https://staging.votre-domaine.com
+-   **Production**: http://YOUR_VPS_IP:3001 ou https://votre-domaine.com
 
 ### Environnements disponibles
-- **Develop** → **Staging** (port 3000)
-- **Main** → **Production** (port 3001)
+
+-   **Develop** → **Staging** (port 3000)
+-   **Main** → **Production** (port 3001)
 
 ## 🏗 Architecture
 
@@ -307,11 +333,11 @@ tests-CI/
 
 ### Patterns Utilisés
 
-- **Séparation des responsabilités** - Services métier séparés des routes
-- **Dependency Injection** - Services injectés dans les routes
-- **Error Handling** - Gestion centralisée des erreurs
-- **Validation** - Validation stricte des entrées
-- **Immutabilité** - Protection des taux de change
+-   **Séparation des responsabilités** - Services métier séparés des routes
+-   **Dependency Injection** - Services injectés dans les routes
+-   **Error Handling** - Gestion centralisée des erreurs
+-   **Validation** - Validation stricte des entrées
+-   **Immutabilité** - Protection des taux de change
 
 ## 🤝 Contribution
 
@@ -325,11 +351,11 @@ tests-CI/
 
 ### Standards de Code
 
-- **ES6+** - Utilisation des features modernes JavaScript
-- **Async/Await** - Pour la gestion asynchrone
-- **Validation stricte** - Tous les paramètres sont validés
-- **Tests obligatoires** - Nouvelle fonctionnalité = nouveaux tests
-- **Documentation** - Code commenté et README à jour
+-   **ES6+** - Utilisation des features modernes JavaScript
+-   **Async/Await** - Pour la gestion asynchrone
+-   **Validation stricte** - Tous les paramètres sont validés
+-   **Tests obligatoires** - Nouvelle fonctionnalité = nouveaux tests
+-   **Documentation** - Code commenté et README à jour
 
 ## 📈 Monitoring et Observabilité
 
@@ -344,24 +370,25 @@ Retourne l'état du service et permet le monitoring externe.
 ### Logs Structurés
 
 Le service génère des logs structurés pour:
-- Erreurs de validation
-- Erreurs internes
-- Demandes invalides
+
+-   Erreurs de validation
+-   Erreurs internes
+-   Demandes invalides
 
 ## 🔒 Sécurité
 
 ### Validation des Entrées
 
-- ✅ Vérification des types de données
-- ✅ Validation des plages de valeurs
-- ✅ Protection contre l'injection
-- ✅ Sanitisation des paramètres
+-   ✅ Vérification des types de données
+-   ✅ Validation des plages de valeurs
+-   ✅ Protection contre l'injection
+-   ✅ Sanitisation des paramètres
 
 ### Audit de Sécurité
 
-- ✅ Audit automatique des dépendances
-- ✅ Vérification des vulnérabilités connues
-- ✅ Contrôle des licences
+-   ✅ Audit automatique des dépendances
+-   ✅ Vérification des vulnérabilités connues
+-   ✅ Contrôle des licences
 
 ## 📊 Exemples d'Utilisation
 
@@ -398,6 +425,7 @@ Ce projet est développé dans le cadre d'un exercice technique.
 ## 🆘 Support
 
 Pour toute question ou problème:
+
 1. Vérifier les logs du service
 2. Consulter la documentation des tests
 3. Vérifier l'état du pipeline CI/CD

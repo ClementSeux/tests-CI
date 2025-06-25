@@ -1,5 +1,5 @@
 // Configuration globale pour Jest
-const { server } = require('../index');
+const { server } = require("../index");
 
 // Configuration des timeouts
 jest.setTimeout(30000);
@@ -17,7 +17,7 @@ afterAll(async () => {
 global.console = {
     ...console,
     // Masquer les logs pendant les tests sauf si explicitement demandé
-    log: process.env.JEST_VERBOSE === 'true' ? console.log : jest.fn(),
+    log: process.env.JEST_VERBOSE === "true" ? console.log : jest.fn(),
     error: console.error,
     warn: console.warn,
     info: console.info,
@@ -27,15 +27,15 @@ global.console = {
 // Utilitaires de test globaux
 global.testUtils = {
     // Helper pour attendre un délai
-    delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
-    
+    delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+
     // Helper pour formater les montants
     formatAmount: (amount) => parseFloat(parseFloat(amount).toFixed(2)),
-    
+
     // Helper pour valider les réponses d'API
     validateApiResponse: (response, expectedProperties) => {
-        expectedProperties.forEach(prop => {
+        expectedProperties.forEach((prop) => {
             expect(response.body).toHaveProperty(prop);
         });
-    }
+    },
 };
