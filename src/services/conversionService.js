@@ -3,10 +3,10 @@ class ConversionService {
     constructor() {
         // Taux de conversion fixes selon le cahier des charges
         this.exchangeRates = {
-            'EUR-USD': 1.1,  // 1 EUR = 1.1 USD
-            'USD-GBP': 0.8,  // 1 USD = 0.8 GBP
-            'USD-EUR': 1 / 1.1,  // Conversion inverse
-            'GBP-USD': 1 / 0.8   // Conversion inverse
+            "EUR-USD": 1.1, // 1 EUR = 1.1 USD
+            "USD-GBP": 0.8, // 1 USD = 0.8 GBP
+            "USD-EUR": 1 / 1.1, // Conversion inverse
+            "GBP-USD": 1 / 0.8, // Conversion inverse
         };
     }
 
@@ -20,12 +20,14 @@ class ConversionService {
     convert(from, to, amount) {
         // Validation des entrées
         if (!from || !to || amount === undefined || amount === null) {
-            throw new Error('Paramètres manquants: from, to et amount sont requis');
+            throw new Error(
+                "Paramètres manquants: from, to et amount sont requis"
+            );
         }
 
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount) || numAmount < 0) {
-            throw new Error('Le montant doit être un nombre positif');
+            throw new Error("Le montant doit être un nombre positif");
         }
 
         if (from === to) {
@@ -33,7 +35,7 @@ class ConversionService {
                 from,
                 to,
                 originalAmount: numAmount,
-                convertedAmount: numAmount
+                convertedAmount: numAmount,
             };
         }
 
@@ -50,7 +52,7 @@ class ConversionService {
             from,
             to,
             originalAmount: numAmount,
-            convertedAmount
+            convertedAmount,
         };
     }
 
@@ -74,13 +76,17 @@ class ConversionService {
             setTimeout(() => {
                 const rateKey = `${from}-${to}`;
                 const rate = this.exchangeRates[rateKey];
-                
+
                 if (rate) {
                     resolve(rate);
                 } else {
-                    reject(new Error(`Taux de change non trouvé pour ${from}-${to}`));
+                    reject(
+                        new Error(
+                            `Taux de change non trouvé pour ${from}-${to}`
+                        )
+                    );
                 }
-            }, 100); // Simule une latence réseau
+            }, 110); // Simule une latence réseau
         });
     }
 }
