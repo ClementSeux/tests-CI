@@ -160,24 +160,50 @@ jobs:
                       echo "🏠 Current directory: $(pwd)"
                       echo "👤 Current user: $(whoami)"
                       echo "🔑 SSH connection successful!"
-                      echo "📁 Checking application directory..."
+                      echo "📁 Setting up application directory..."
 
-                      if [ ! -d "/var/www/financial-microservice" ]; then
-                          echo "📁 Creating application directory..."
-                          sudo mkdir -p /var/www/financial-microservice
-                          sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
+                      # Create application directory structure
+                      sudo mkdir -p /var/www/financial-microservice/{releases,shared/logs,shared/config}
+                      sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
+
+                      # Create release directory
+                      VERSION=$(date +%Y%m%d_%H%M%S)
+                      RELEASE_DIR="/var/www/financial-microservice/releases/$VERSION"
+                      mkdir -p "$RELEASE_DIR"
+
+                      echo "📦 Preparing release $VERSION..."
+
+                      # Clone repository for deployment
+                      git clone https://github.com/${{ github.repository }}.git "$RELEASE_DIR"
+                      cd "$RELEASE_DIR"
+
+                      # Install dependencies
+                      echo "📚 Installing dependencies..."
+                      npm ci --production
+
+                      # Copy ecosystem config for PM2
+                      cp ecosystem.config.js "$RELEASE_DIR/" || echo "No ecosystem.config.js found"
+
+                      # Stop old application
+                      pm2 stop financial-microservice || echo "App not running"
+
+                      # Update symlink
+                      rm -f /var/www/financial-microservice/current
+                      ln -sf "$RELEASE_DIR" /var/www/financial-microservice/current
+
+                      # Start application with PM2
+                      cd /var/www/financial-microservice/current
+                      if [ "${{ github.ref_name }}" = "develop" ]; then
+                          PORT=3000 pm2 start ecosystem.config.js --name financial-microservice-staging --env staging
+                      else
+                          PORT=3001 pm2 start ecosystem.config.js --name financial-microservice-production --env production  
                       fi
 
-                      cd /var/www/financial-microservice
+                      pm2 save
 
-                      if [ ! -f "./deploy/deploy.sh" ]; then
-                          echo "📥 Cloning repository for first deployment..."
-                          git clone https://github.com/${{ github.repository }}.git .
-                          chmod +x ./deploy/deploy.sh
-                      fi
-
-                      echo "🚀 Starting deployment..."
-                      ./deploy/deploy.sh staging
+                      echo "✅ Deployment completed successfully!"
+                      echo "📊 PM2 Status:"
+                      pm2 status
 
             - name: Tests de santé post-déploiement
               run: |
@@ -215,24 +241,46 @@ jobs:
                       echo "🏠 Current directory: $(pwd)"
                       echo "👤 Current user: $(whoami)"
                       echo "🔑 SSH connection successful!"
-                      echo "📁 Checking application directory..."
+                      echo "📁 Setting up application directory..."
 
-                      if [ ! -d "/var/www/financial-microservice" ]; then
-                          echo "📁 Creating application directory..."
-                          sudo mkdir -p /var/www/financial-microservice
-                          sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
-                      fi
+                      # Create application directory structure
+                      sudo mkdir -p /var/www/financial-microservice/{releases,shared/logs,shared/config}
+                      sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
 
-                      cd /var/www/financial-microservice
+                      # Create release directory
+                      VERSION=$(date +%Y%m%d_%H%M%S)
+                      RELEASE_DIR="/var/www/financial-microservice/releases/$VERSION"
+                      mkdir -p "$RELEASE_DIR"
 
-                      if [ ! -f "./deploy/deploy.sh" ]; then
-                          echo "📥 Cloning repository for first deployment..."
-                          git clone https://github.com/${{ github.repository }}.git .
-                          chmod +x ./deploy/deploy.sh
-                      fi
+                      echo "📦 Preparing release $VERSION..."
 
-                      echo "🚀 Starting deployment..."
-                      ./deploy/deploy.sh production
+                      # Clone repository for deployment
+                      git clone https://github.com/${{ github.repository }}.git "$RELEASE_DIR"
+                      cd "$RELEASE_DIR"
+
+                      # Install dependencies
+                      echo "📚 Installing dependencies..."
+                      npm ci --production
+
+                      # Copy ecosystem config for PM2
+                      cp ecosystem.config.js "$RELEASE_DIR/" || echo "No ecosystem.config.js found"
+
+                      # Stop old application
+                      pm2 stop financial-microservice-production || echo "App not running"
+
+                      # Update symlink
+                      rm -f /var/www/financial-microservice/current
+                      ln -sf "$RELEASE_DIR" /var/www/financial-microservice/current
+
+                      # Start application with PM2
+                      cd /var/www/financial-microservice/current
+                      PORT=3001 pm2 start ecosystem.config.js --name financial-microservice-production --env production
+
+                      pm2 save
+
+                      echo "✅ Deployment completed successfully!"
+                      echo "📊 PM2 Status:"
+                      pm2 status
 
             - name: Tests de santé post-déploiement
               run: |
