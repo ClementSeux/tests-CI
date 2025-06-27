@@ -136,7 +136,6 @@ jobs:
         needs: [test-and-validate, build]
         name: Déploiement Staging
         if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-        environment: staging
 
         steps:
             - name: Checkout du code
@@ -154,8 +153,30 @@ jobs:
                   username: ${{ secrets.STAGING_USER }}
                   key: ${{ secrets.STAGING_SSH_KEY }}
                   port: ${{ secrets.STAGING_PORT }}
+                  timeout: 30s
+                  command_timeout: 10m
+                  debug: true
                   script: |
+                      echo "🏠 Current directory: $(pwd)"
+                      echo "👤 Current user: $(whoami)"
+                      echo "🔑 SSH connection successful!"
+                      echo "📁 Checking application directory..."
+
+                      if [ ! -d "/var/www/financial-microservice" ]; then
+                          echo "📁 Creating application directory..."
+                          sudo mkdir -p /var/www/financial-microservice
+                          sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
+                      fi
+
                       cd /var/www/financial-microservice
+
+                      if [ ! -f "./deploy/deploy.sh" ]; then
+                          echo "📥 Cloning repository for first deployment..."
+                          git clone https://github.com/${{ github.repository }}.git .
+                          chmod +x ./deploy/deploy.sh
+                      fi
+
+                      echo "🚀 Starting deployment..."
                       ./deploy/deploy.sh staging
 
             - name: Tests de santé post-déploiement
@@ -170,7 +191,6 @@ jobs:
         needs: [test-and-validate, build]
         name: Déploiement Production
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        environment: production
 
         steps:
             - name: Checkout du code
@@ -188,8 +208,30 @@ jobs:
                   username: ${{ secrets.PRODUCTION_USER }}
                   key: ${{ secrets.PRODUCTION_SSH_KEY }}
                   port: ${{ secrets.PRODUCTION_PORT }}
+                  timeout: 30s
+                  command_timeout: 10m
+                  debug: true
                   script: |
+                      echo "🏠 Current directory: $(pwd)"
+                      echo "👤 Current user: $(whoami)"
+                      echo "🔑 SSH connection successful!"
+                      echo "📁 Checking application directory..."
+
+                      if [ ! -d "/var/www/financial-microservice" ]; then
+                          echo "📁 Creating application directory..."
+                          sudo mkdir -p /var/www/financial-microservice
+                          sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
+                      fi
+
                       cd /var/www/financial-microservice
+
+                      if [ ! -f "./deploy/deploy.sh" ]; then
+                          echo "📥 Cloning repository for first deployment..."
+                          git clone https://github.com/${{ github.repository }}.git .
+                          chmod +x ./deploy/deploy.sh
+                      fi
+
+                      echo "🚀 Starting deployment..."
                       ./deploy/deploy.sh production
 
             - name: Tests de santé post-déploiement
