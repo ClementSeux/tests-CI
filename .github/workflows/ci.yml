@@ -138,15 +138,22 @@ jobs:
         if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
 
         steps:
-            - name: Checkout du code
-              uses: actions/checkout@v4
-
             - name: Download artifact
               uses: actions/download-artifact@v4
               with:
                   name: financial-microservice-${{ github.sha }}
 
-            - name: Déploiement sur serveur staging
+            - name: Transfer artifact to staging server
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                  host: ${{ secrets.STAGING_HOST }}
+                  username: ${{ secrets.STAGING_USER }}
+                  key: ${{ secrets.STAGING_SSH_KEY }}
+                  port: ${{ secrets.STAGING_PORT }}
+                  source: "financial-microservice-${{ github.sha }}.tar.gz"
+                  target: "/tmp/"
+
+            - name: Deploy to staging server
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.STAGING_HOST }}
@@ -155,14 +162,18 @@ jobs:
                   port: ${{ secrets.STAGING_PORT }}
                   timeout: 30s
                   command_timeout: 10m
-                  debug: true
                   script: |
+                      echo "🔑 SSH connection successful!"
                       echo "🏠 Current directory: $(pwd)"
                       echo "👤 Current user: $(whoami)"
-                      echo "🔑 SSH connection successful!"
-                      echo "📁 Setting up application directory..."
 
-                      # Create application directory structure
+                      # Check prerequisites
+                      echo "🔍 Checking prerequisites..."
+                      which node || (echo "❌ Node.js not found. Installing..." && curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt-get install -y nodejs)
+                      which npm || echo "❌ npm not found"
+                      which pm2 || (echo "📦 Installing PM2..." && sudo npm install -g pm2)
+
+                      echo "📁 Setting up application directory..."
                       sudo mkdir -p /var/www/financial-microservice/{releases,shared/logs,shared/config}
                       sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
 
@@ -171,39 +182,64 @@ jobs:
                       RELEASE_DIR="/var/www/financial-microservice/releases/$VERSION"
                       mkdir -p "$RELEASE_DIR"
 
-                      echo "📦 Preparing release $VERSION..."
+                      echo "📦 Preparing staging release $VERSION..."
 
-                      # Clone repository for deployment
-                      git clone https://github.com/${{ github.repository }}.git "$RELEASE_DIR"
+                      # Extract uploaded artifact
+                      echo "📥 Extracting deployment artifact..."
+                      if [ -f "/tmp/financial-microservice-${{ github.sha }}.tar.gz" ]; then
+                          tar -xzf /tmp/financial-microservice-${{ github.sha }}.tar.gz -C "$RELEASE_DIR"
+                          echo "✅ Staging artifact extracted successfully"
+                      else
+                          echo "❌ Artifact not found at /tmp/financial-microservice-${{ github.sha }}.tar.gz"
+                          exit 1
+                      fi
+
                       cd "$RELEASE_DIR"
 
                       # Install dependencies
                       echo "📚 Installing dependencies..."
-                      npm ci --production
-
-                      # Copy ecosystem config for PM2
-                      cp ecosystem.config.js "$RELEASE_DIR/" || echo "No ecosystem.config.js found"
+                      npm ci --production --silent
 
                       # Stop old application
-                      pm2 stop financial-microservice || echo "App not running"
+                      echo "⏹️ Stopping old staging application..."
+                      pm2 stop financial-microservice-staging 2>/dev/null || echo "No previous staging app found"
+                      pm2 delete financial-microservice-staging 2>/dev/null || echo "No previous staging app to delete"
 
                       # Update symlink
+                      echo "🔗 Updating symlink..."
                       rm -f /var/www/financial-microservice/current
                       ln -sf "$RELEASE_DIR" /var/www/financial-microservice/current
 
                       # Start application with PM2
+                      echo "🚀 Starting staging application..."
                       cd /var/www/financial-microservice/current
-                      if [ "${{ github.ref_name }}" = "develop" ]; then
-                          PORT=3000 pm2 start ecosystem.config.js --name financial-microservice-staging --env staging
-                      else
-                          PORT=3001 pm2 start ecosystem.config.js --name financial-microservice-production --env production  
-                      fi
 
+                      # Start with environment variables
+                      PORT=3000 NODE_ENV=staging pm2 start index.js --name financial-microservice-staging
                       pm2 save
 
-                      echo "✅ Deployment completed successfully!"
+                      # Wait for startup
+                      echo "⏳ Waiting for application to start..."
+                      sleep 10
+
+                      # Health check
+                      echo "🩺 Performing health check..."
+                      if curl -f http://localhost:3000/health >/dev/null 2>&1; then
+                          echo "✅ Staging application is healthy!"
+                      else
+                          echo "❌ Health check failed"
+                          pm2 logs financial-microservice-staging --lines 20
+                          exit 1
+                      fi
+
+                      echo "✅ Staging deployment completed successfully!"
                       echo "📊 PM2 Status:"
                       pm2 status
+
+                      # Cleanup old releases (keep last 3)
+                      echo "🧹 Cleaning up old releases..."
+                      cd /var/www/financial-microservice/releases
+                      ls -t | tail -n +4 | xargs -r rm -rf
 
             - name: Tests de santé post-déploiement
               run: |
@@ -219,15 +255,22 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
         steps:
-            - name: Checkout du code
-              uses: actions/checkout@v4
-
             - name: Download artifact
               uses: actions/download-artifact@v4
               with:
                   name: financial-microservice-${{ github.sha }}
 
-            - name: Déploiement sur serveur production
+            - name: Transfer artifact to production server
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                  host: ${{ secrets.PRODUCTION_HOST }}
+                  username: ${{ secrets.PRODUCTION_USER }}
+                  key: ${{ secrets.PRODUCTION_SSH_KEY }}
+                  port: ${{ secrets.PRODUCTION_PORT }}
+                  source: "financial-microservice-${{ github.sha }}.tar.gz"
+                  target: "/tmp/"
+
+            - name: Deploy to production server
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.PRODUCTION_HOST }}
@@ -236,14 +279,18 @@ jobs:
                   port: ${{ secrets.PRODUCTION_PORT }}
                   timeout: 30s
                   command_timeout: 10m
-                  debug: true
                   script: |
+                      echo "🔑 SSH connection successful!"
                       echo "🏠 Current directory: $(pwd)"
                       echo "👤 Current user: $(whoami)"
-                      echo "🔑 SSH connection successful!"
-                      echo "📁 Setting up application directory..."
 
-                      # Create application directory structure
+                      # Check prerequisites
+                      echo "🔍 Checking prerequisites..."
+                      which node || (echo "❌ Node.js not found. Installing..." && curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt-get install -y nodejs)
+                      which npm || echo "❌ npm not found"
+                      which pm2 || (echo "📦 Installing PM2..." && sudo npm install -g pm2)
+
+                      echo "📁 Setting up application directory..."
                       sudo mkdir -p /var/www/financial-microservice/{releases,shared/logs,shared/config}
                       sudo chown -R $(whoami):$(whoami) /var/www/financial-microservice
 
@@ -252,35 +299,64 @@ jobs:
                       RELEASE_DIR="/var/www/financial-microservice/releases/$VERSION"
                       mkdir -p "$RELEASE_DIR"
 
-                      echo "📦 Preparing release $VERSION..."
+                      echo "📦 Preparing production release $VERSION..."
 
-                      # Clone repository for deployment
-                      git clone https://github.com/${{ github.repository }}.git "$RELEASE_DIR"
+                      # Extract uploaded artifact
+                      echo "📥 Extracting deployment artifact..."
+                      if [ -f "/tmp/financial-microservice-${{ github.sha }}.tar.gz" ]; then
+                          tar -xzf /tmp/financial-microservice-${{ github.sha }}.tar.gz -C "$RELEASE_DIR"
+                          echo "✅ Production artifact extracted successfully"
+                      else
+                          echo "❌ Artifact not found at /tmp/financial-microservice-${{ github.sha }}.tar.gz"
+                          exit 1
+                      fi
+
                       cd "$RELEASE_DIR"
 
                       # Install dependencies
                       echo "📚 Installing dependencies..."
-                      npm ci --production
-
-                      # Copy ecosystem config for PM2
-                      cp ecosystem.config.js "$RELEASE_DIR/" || echo "No ecosystem.config.js found"
+                      npm ci --production --silent
 
                       # Stop old application
-                      pm2 stop financial-microservice-production || echo "App not running"
+                      echo "⏹️ Stopping old production application..."
+                      pm2 stop financial-microservice-production 2>/dev/null || echo "No previous production app found"
+                      pm2 delete financial-microservice-production 2>/dev/null || echo "No previous production app to delete"
 
                       # Update symlink
+                      echo "🔗 Updating symlink..."
                       rm -f /var/www/financial-microservice/current
                       ln -sf "$RELEASE_DIR" /var/www/financial-microservice/current
 
                       # Start application with PM2
+                      echo "🚀 Starting production application..."
                       cd /var/www/financial-microservice/current
-                      PORT=3001 pm2 start ecosystem.config.js --name financial-microservice-production --env production
 
+                      # Start with environment variables
+                      PORT=3001 NODE_ENV=production pm2 start index.js --name financial-microservice-production
                       pm2 save
 
-                      echo "✅ Deployment completed successfully!"
+                      # Wait for startup
+                      echo "⏳ Waiting for application to start..."
+                      sleep 10
+
+                      # Health check
+                      echo "🩺 Performing health check..."
+                      if curl -f http://localhost:3001/health >/dev/null 2>&1; then
+                          echo "✅ Production application is healthy!"
+                      else
+                          echo "❌ Health check failed"
+                          pm2 logs financial-microservice-production --lines 20
+                          exit 1
+                      fi
+
+                      echo "✅ Production deployment completed successfully!"
                       echo "📊 PM2 Status:"
                       pm2 status
+
+                      # Cleanup old releases (keep last 3)
+                      echo "🧹 Cleaning up old releases..."
+                      cd /var/www/financial-microservice/releases
+                      ls -t | tail -n +4 | xargs -r rm -rf
 
             - name: Tests de santé post-déploiement
               run: |
